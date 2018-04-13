@@ -17,7 +17,7 @@ public:
   Vector &operator-=(Vector &vec);
 };
 
-#define ALHELP_IMPLEMENTATION
+// #define ALHELP_IMPLEMENTATION
 #ifdef ALHELP_IMPLEMENTATION
 // code
 template <class T> Vector<T>::Vector() : x(T(0)), y(T(0)){};
