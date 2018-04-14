@@ -3,10 +3,10 @@
 #include <iostream>
 
 int main(void) {
-  Vector<int> myVec(5, 4);
+  alhelp::Vector<int> myVec(5, 4);
   std::cout << "Before myvec: " << myVec.toString() << std::endl;
-  Vector<int> otherVec(3, 2);
-  myVec = myVec + otherVec;
+  alhelp::Vector<int> otherVec(3, 2);
+  myVec = myVec + alhelp::Vector<int>(2, 2);
   std::cout << "Myvec: " << myVec.toString() << std::endl;
   std::cout << "OtherVec: " << otherVec.toString() << std::endl;
 }
