@@ -82,17 +82,24 @@ private:
   std::string methodName;
   std::string methodInput;
 };
+class Backend {
+public:
+  virtual void run(double delta) = 0;
+};
+
 class System {
 private:
   ALLEGRO_DISPLAY *display = NULL;
   ALLEGRO_EVENT_QUEUE *queue = NULL;
   SafeColor clearcl;
   Vector<int> dispSize;
+  double fps;
 
 public:
-  System() : clearcl(SafeColor(0, 0, 0)), dispSize(Vector<int>(500, 500)){};
-  System(Vector<int> inDispSize, SafeColor col)
-      : clearcl(col), dispSize(inDispSize){};
+  System()
+      : clearcl(SafeColor(0, 0, 0)), dispSize(Vector<int>(500, 500)), fps(30){};
+  System(Vector<int> inDispSize, SafeColor col, double inFps)
+      : clearcl(col), dispSize(inDispSize), fps(inFps){};
   void init();
   ~System();
 };
@@ -113,6 +120,9 @@ void System::init() {
   this->queue = al_create_event_queue();
   if (!this->queue) {
     throw InitFail("al_create_event_queue");
+  }
+  if (this->fps <= 0) {
+    throw InitFail("System()", "fps: " + std::to_string(this->fps));
   }
   al_clear_to_color(clearcl.al_c());
   al_flip_display();
