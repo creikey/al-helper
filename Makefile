@@ -1,5 +1,5 @@
 FILE=alhelp.hpp
-INSTALLLOC=/usr/local/include/
+INSTALLLOC=/usr/local/include
 
 .PHONY: install uninstall
 
