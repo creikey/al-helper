@@ -4,8 +4,8 @@
 #include <iostream>
 
 int main(int argc, char **argv) {
-  alhelp::System sys(alhelp::Vector<int>(300, 300),
-                     alhelp::SafeColor(200, 200, 200));
+  alhelp::System sys(alhelp::Vector2<int>(300, 300),
+                     alhelp::SafeColor(200, 200, 200), 60);
   try {
     sys.init();
   } catch (alhelp::InitFail fail) {
