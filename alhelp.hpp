@@ -2,6 +2,7 @@
 #define HPP_ALHELP
 // header file
 #include <allegro5/allegro.h>
+#include <allegro5/allegro_primitives.h>
 #include <cmath>
 #include <exception>
 #include <forward_list>
@@ -88,12 +89,17 @@ private:
 class IDFail : public std::exception {
 public:
   const char *what() const throw() {
-    return (("Could not find object with id `" + toSearchFor + "`").c_str());
+    // return (("Could not find object with id `" + toSearchFor + "`").c_str());
+    // return "Couldn't find id";
+    return this->error.c_str();
   };
-  IDFail(std::string inSearchFor) : toSearchFor(inSearchFor){};
+  IDFail(const std::string inSearchFor)
+      : error("Could not find object with id `" + inSearchFor + "`"),
+        toSearchFor(inSearchFor){};
 
 private:
-  std::string toSearchFor;
+  const std::string error;
+  const std::string toSearchFor;
 };
 
 class System;
@@ -137,13 +143,13 @@ public:
   std::shared_ptr<Backend> getBackend(std::string inID);
   std::shared_ptr<Frontend> getFrontend(std::string inID);
   void addFrontend(Frontend *toAdd);
-  void addBackEnd(Backend *toAdd);
+  void addBackend(Backend *toAdd);
   bool getClose() { return this->close; };
   void run();
 };
 }
 
-#define ALHELP_IMPLEMENTATION // for linter in atom
+// #define ALHELP_IMPLEMENTATION // for linter in atom
 #ifdef ALHELP_IMPLEMENTATION
 // code
 namespace alhelp {
@@ -158,6 +164,9 @@ void System::init() {
   this->queue = al_create_event_queue();
   if (!this->queue) {
     throw InitFail("al_create_event_queue");
+  }
+  if (!al_init_primitives_addon()) {
+    throw InitFail("al_init_primitives_addon");
   }
   if (this->fps <= 0) {
     throw InitFail("System()", "fps: " + std::to_string(this->fps));
@@ -197,6 +206,10 @@ std::shared_ptr<Frontend> System::getFrontend(std::string inID) {
   throw(IDFail(inID));
 }
 void System::addFrontend(Frontend *toAdd) {
+  if (this->frontend.empty()) {
+    this->frontend.assign(1, std::shared_ptr<Frontend>(toAdd));
+    return;
+  }
   auto i = (this->frontend).begin();
   for (; i != (this->frontend).end(); i++) {
     if (i->get()->getZIndex() > toAdd->getZIndex()) {
@@ -206,7 +219,7 @@ void System::addFrontend(Frontend *toAdd) {
   this->frontend.insert_after(this->frontend.end(),
                               std::shared_ptr<Frontend>(toAdd));
 }
-void System::addBackEnd(Backend *toAdd) {
+void System::addBackend(Backend *toAdd) {
   this->backend.push_back(std::shared_ptr<Backend>(toAdd));
 }
 void System::run() {
