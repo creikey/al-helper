@@ -4,54 +4,57 @@
 #include <allegro5/allegro.h>
 #include <cmath>
 #include <exception>
+#include <forward_list>
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace alhelp {
-// Standard 2d Vector
-template <class T = float> class Vector {
+// Standard 2d Vector2
+template <class T = float> class Vector2 {
 public:
   T x;
   T y;
-  Vector() : x(T(0)), y(T(0)){};
-  Vector(T inx, T iny) : x(inx), y(iny){};
-  Vector<double> normalize() {
+  Vector2() : x(T(0)), y(T(0)){};
+  Vector2(T inx, T iny) : x(inx), y(iny){};
+  Vector2<double> normalize() {
     double len = this->length();
-    return Vector<double>(this->x / len, this->y / len);
+    return Vector2<double>(this->x / len, this->y / len);
   };
   double length() { return sqrt(this->x * this->x + this->y * this->y); };
   std::string toString() {
     return "(" + std::to_string(this->x) + "," + std::to_string(this->y) + ")";
   };
 
-  Vector &operator+(const Vector &vec) {
+  Vector2 &operator+(const Vector2 &vec) {
     this->x += vec.x;
     this->y += vec.y;
     return *this;
   }; // add
-  Vector &operator*(const Vector &vec) {
+  Vector2 &operator*(const Vector2 &vec) {
     this->x *= vec.x;
     this->y *= vec.y;
     return *this;
   };
-  Vector &operator*(const T scalar) {
+  Vector2 &operator*(const T scalar) {
     this->x *= scalar;
     this->y *= scalar;
     return *this;
   };
-  Vector &operator-(const Vector &vec) {
+  Vector2 &operator-(const Vector2 &vec) {
     this->x -= vec.x;
     this->y -= vec.y;
     return *this;
   };
-  Vector &operator/(const Vector &vec) {
+  Vector2 &operator/(const Vector2 &vec) {
     this->x /= vec.x;
     this->y /= vec.y;
     return *this;
   };
-  bool operator>(const Vector &vec) {
+  bool operator>(const Vector2 &vec) {
     return (this->x > vec.x) && (this->y > vec.y);
   }
-  bool operator<(const Vector &vec) {
+  bool operator<(const Vector2 &vec) {
     return (this->x < vec.x) && (this->y < vec.y);
   }
 };
@@ -82,30 +85,65 @@ private:
   std::string methodName;
   std::string methodInput;
 };
+class IDFail : public std::exception {
+public:
+  const char *what() const throw() {
+    return (("Could not find object with id `" + toSearchFor + "`").c_str());
+  };
+  IDFail(std::string inSearchFor) : toSearchFor(inSearchFor){};
+
+private:
+  std::string toSearchFor;
+};
+
+class System;
+
 class Backend {
 public:
   virtual void run(double delta) = 0;
+  virtual void setSystem(System *newSystem) = 0;
+  virtual std::string getID() = 0; // Unique name of object
+};
+
+class Frontend : public Backend {
+public:
+  virtual void draw() = 0;
+  virtual int getZIndex() = 0;
 };
 
 class System {
 private:
   ALLEGRO_DISPLAY *display = NULL;
   ALLEGRO_EVENT_QUEUE *queue = NULL;
+  bool initialized = false;
+  bool close = false;
+  bool redraw = false;
   SafeColor clearcl;
-  Vector<int> dispSize;
+  Vector2<int> dispSize;
   double fps;
+  ALLEGRO_TIMER *fpsTimer = NULL;
+  std::vector<std::shared_ptr<Backend>> backend;
+  std::forward_list<std::shared_ptr<Frontend>> frontend;
 
 public:
   System()
-      : clearcl(SafeColor(0, 0, 0)), dispSize(Vector<int>(500, 500)), fps(30){};
-  System(Vector<int> inDispSize, SafeColor col, double inFps)
+      : clearcl(SafeColor(0, 0, 0)), dispSize(Vector2<int>(500, 500)),
+        fps(30){};
+  System(Vector2<int> inDispSize, SafeColor col, double inFps)
       : clearcl(col), dispSize(inDispSize), fps(inFps){};
-  void init();
   ~System();
+  void init();
+  bool isInitialized() { return initialized; };
+  std::shared_ptr<Backend> getBackend(std::string inID);
+  std::shared_ptr<Frontend> getFrontend(std::string inID);
+  void addFrontend(Frontend *toAdd);
+  void addBackEnd(Backend *toAdd);
+  bool getClose() { return this->close; };
+  void run();
 };
 }
 
-// #define ALHELP_IMPLEMENTATION // for linter in atom
+#define ALHELP_IMPLEMENTATION // for linter in atom
 #ifdef ALHELP_IMPLEMENTATION
 // code
 namespace alhelp {
@@ -124,12 +162,75 @@ void System::init() {
   if (this->fps <= 0) {
     throw InitFail("System()", "fps: " + std::to_string(this->fps));
   }
+  this->fpsTimer = al_create_timer(1.0 / this->fps);
+  if (!this->fpsTimer) {
+    throw InitFail("al_create_timer", std::to_string(1.0 / this->fps));
+  }
+  al_register_event_source(this->queue,
+                           al_get_display_event_source(this->display));
+  al_register_event_source(this->queue,
+                           al_get_timer_event_source(this->fpsTimer));
+  al_start_timer(this->fpsTimer);
   al_clear_to_color(clearcl.al_c());
   al_flip_display();
+  this->initialized = true;
 }
 System::~System() {
+  al_destroy_timer(this->fpsTimer);
   al_destroy_display(this->display);
   al_destroy_event_queue(this->queue);
+}
+std::shared_ptr<Backend> System::getBackend(std::string inID) {
+  for (auto i = (this->backend).begin(); i != (this->backend).end(); i++) {
+    if (i->get()->getID() == inID) {
+      return *i;
+    }
+  }
+  throw(IDFail(inID));
+}
+std::shared_ptr<Frontend> System::getFrontend(std::string inID) {
+  for (auto i = (this->frontend).begin(); i != (this->frontend).end(); i++) {
+    if (i->get()->getID() == inID) {
+      return *i;
+    }
+  }
+  throw(IDFail(inID));
+}
+void System::addFrontend(Frontend *toAdd) {
+  auto i = (this->frontend).begin();
+  for (; i != (this->frontend).end(); i++) {
+    if (i->get()->getZIndex() > toAdd->getZIndex()) {
+      this->frontend.insert_after(i, std::shared_ptr<Frontend>(toAdd));
+    }
+  }
+  this->frontend.insert_after(this->frontend.end(),
+                              std::shared_ptr<Frontend>(toAdd));
+}
+void System::addBackEnd(Backend *toAdd) {
+  this->backend.push_back(std::shared_ptr<Backend>(toAdd));
+}
+void System::run() {
+  ALLEGRO_EVENT ev;
+  al_wait_for_event(this->queue, &ev);
+  if (ev.type == ALLEGRO_EVENT_TIMER) {
+    if (ev.timer.source == this->fpsTimer) {
+      this->redraw = true;
+    }
+  } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+    this->close = true;
+    return;
+  }
+  if (this->redraw) {
+    al_clear_to_color(this->clearcl.al_c());
+    for (auto i = this->backend.begin(); i != this->backend.end(); i++) {
+      i->get()->run(0.1);
+    }
+    for (auto i = this->frontend.begin(); i != this->frontend.end(); i++) {
+      i->get()->run(0.1);
+      i->get()->draw();
+    }
+    al_flip_display();
+  }
 }
 }
 
