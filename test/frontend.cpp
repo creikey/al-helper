@@ -35,6 +35,7 @@ public:
     try {
       myExtent.x =
           ((MyCounter *)sys->getBackend("MyCounter").get())->getCount();
+      myExtent.y = ((MyCounter *)sys->getBackend("MyCounter").get())->getCount();
     } catch (alhelp::IDFail fail) {
       std::cout << "Error: " << fail.what() << std::endl;
     }
