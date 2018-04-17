@@ -130,6 +130,7 @@ private:
   ALLEGRO_TIMER *fpsTimer = NULL;
   std::vector<std::shared_ptr<Backend>> backend;
   std::forward_list<std::shared_ptr<Frontend>> frontend;
+  bool keys[ALLEGRO_KEY_MAX] = {false};
 
 public:
   System()
@@ -145,6 +146,7 @@ public:
   void addFrontend(Frontend *toAdd);
   void addBackend(Backend *toAdd);
   bool getClose() { return this->close; };
+  bool key_down(int keycode) { return this->keys[keycode]; };
   void run();
 };
 }
@@ -168,6 +170,9 @@ void System::init() {
   if (!al_init_primitives_addon()) {
     throw InitFail("al_init_primitives_addon");
   }
+  if (!al_install_keyboard()) {
+    throw InitFail("al_install_keyboard");
+  }
   if (this->fps <= 0) {
     throw InitFail("System()", "fps: " + std::to_string(this->fps));
   }
@@ -179,6 +184,7 @@ void System::init() {
                            al_get_display_event_source(this->display));
   al_register_event_source(this->queue,
                            al_get_timer_event_source(this->fpsTimer));
+  al_register_event_source(this->queue, al_get_keyboard_event_source());
   al_start_timer(this->fpsTimer);
   al_clear_to_color(clearcl.al_c());
   al_flip_display();
@@ -229,6 +235,10 @@ void System::run() {
     if (ev.timer.source == this->fpsTimer) {
       this->redraw = true;
     }
+  } else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
+    this->keys[ev.keyboard.keycode] = true;
+  } else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
+    this->keys[ev.keyboard.keycode] = false;
   } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
     this->close = true;
     return;
