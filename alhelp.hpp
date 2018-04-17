@@ -229,6 +229,7 @@ void System::addBackend(Backend *toAdd) {
   this->backend.push_back(std::shared_ptr<Backend>(toAdd));
 }
 void System::run() {
+  // TODO figure out why the keyboard is so shitty
   ALLEGRO_EVENT ev;
   al_wait_for_event(this->queue, &ev);
   if (ev.type == ALLEGRO_EVENT_TIMER) {
