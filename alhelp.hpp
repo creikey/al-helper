@@ -128,6 +128,8 @@ private:
   Vector2<int> dispSize;
   double fps;
   ALLEGRO_TIMER *fpsTimer = NULL;
+  ALLEGRO_TIMER *performanceTimer = NULL;
+  int previousPerformanceCount = 0;
   std::vector<std::shared_ptr<Backend>> backend;
   std::forward_list<std::shared_ptr<Frontend>> frontend;
   bool keys[ALLEGRO_KEY_MAX] = {false};
@@ -148,6 +150,7 @@ public:
   bool getClose() { return this->close; };
   bool key_down(int keycode) { return this->keys[keycode]; };
   void run();
+  double getFps() { return this->fps; };
 };
 }
 
@@ -180,11 +183,16 @@ void System::init() {
   if (!this->fpsTimer) {
     throw InitFail("al_create_timer", std::to_string(1.0 / this->fps));
   }
+  this->performanceTimer = al_create_timer((1.0 / this->fps) / 10);
+  if (!this->performanceTimer) {
+    throw InitFail("al_create_timer", std::to_string((1.0 / this->fps) / 10));
+  }
   al_register_event_source(this->queue,
                            al_get_display_event_source(this->display));
   al_register_event_source(this->queue,
                            al_get_timer_event_source(this->fpsTimer));
   al_register_event_source(this->queue, al_get_keyboard_event_source());
+  al_start_timer(this->performanceTimer);
   al_start_timer(this->fpsTimer);
   al_clear_to_color(clearcl.al_c());
   al_flip_display();
@@ -245,12 +253,16 @@ void System::run() {
     return;
   }
   if (this->redraw) {
+    int countDelta = al_get_timer_count(this->performanceTimer) -
+                     this->previousPerformanceCount;
+    this->previousPerformanceCount = al_get_timer_count(this->performanceTimer);
+    double delta = countDelta / 10.0;
     al_clear_to_color(this->clearcl.al_c());
     for (auto i = this->backend.begin(); i != this->backend.end(); i++) {
-      i->get()->run(0.1);
+      i->get()->run(delta);
     }
     for (auto i = this->frontend.begin(); i != this->frontend.end(); i++) {
-      i->get()->run(0.1);
+      i->get()->run(delta);
       i->get()->draw();
     }
     al_flip_display();

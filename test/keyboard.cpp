@@ -2,10 +2,18 @@
 #include <alhelp.hpp>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_primitives.h>
+#include <iostream>
 
 class Square : public alhelp::Frontend {
 public:
   void run(double delta) {
+    this->fpsCounter += delta;
+    this->frameCounter++;
+    if (frameCounter >= this->fps) {
+      std::cout << "Fps: " << this->fpsCounter << std::endl;
+      this->fpsCounter = 0;
+      this->frameCounter = 0;
+    }
     if (this->sys->key_down(ALLEGRO_KEY_RIGHT))
       this->pos.x += this->speed;
     if (this->sys->key_down(ALLEGRO_KEY_LEFT))
@@ -25,12 +33,17 @@ public:
   Square(alhelp::Vector2<double> inSize, alhelp::SafeColor inColor,
          double inSpeed, alhelp::System *inSys)
       : pos(alhelp::Vector2<double>(0, 0)), size(inSize), myColor(inColor),
-        speed(inSpeed), sys(inSys){};
+        speed(inSpeed), sys(inSys) {
+    this->fps = this->sys->getFps();
+  };
 
 private:
   alhelp::Vector2<double> pos;
   alhelp::Vector2<double> size;
   alhelp::SafeColor myColor;
+  double fpsCounter = 0;
+  int frameCounter = 0;
+  double fps;
   const std::string myID = "Square";
   const int zIndex = 1;
   double speed;
