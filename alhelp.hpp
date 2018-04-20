@@ -132,7 +132,8 @@ private:
   int previousPerformanceCount = 0;
   std::vector<std::shared_ptr<Backend>> backend;
   std::list<std::shared_ptr<Frontend>> frontend;
-  bool keys[ALLEGRO_KEY_MAX] = {false};
+  bool eventKeys[ALLEGRO_KEY_MAX] = {false};
+  ALLEGRO_KEYBOARD_STATE *keyState = NULL;
 
 public:
   System()
@@ -148,13 +149,13 @@ public:
   void addFrontend(Frontend *toAdd);
   void addBackend(Backend *toAdd);
   bool getClose() { return this->close; };
-  bool key_down(int keycode) { return this->keys[keycode]; };
   void run();
+  bool keyIsDown(int keycode) { return al_key_down(this->keyState, keycode); };
   double getFps() { return this->fps; };
 };
 }
 
-// #define ALHELP_IMPLEMENTATION // for linter in atom
+#define ALHELP_IMPLEMENTATION // for linter in atom
 #ifdef ALHELP_IMPLEMENTATION
 // code
 namespace alhelp {
@@ -244,14 +245,15 @@ void System::run() {
       this->redraw = true;
     }
   } else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
-    this->keys[ev.keyboard.keycode] = true;
+    this->eventKeys[ev.keyboard.keycode] = true;
   } else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
-    this->keys[ev.keyboard.keycode] = false;
+    this->eventKeys[ev.keyboard.keycode] = false;
   } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
     this->close = true;
     return;
   }
   if (this->redraw) {
+    al_get_keyboard_state(this->keyState);
     int countDelta = al_get_timer_count(this->performanceTimer) -
                      this->previousPerformanceCount;
     this->previousPerformanceCount = al_get_timer_count(this->performanceTimer);
