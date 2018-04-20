@@ -5,7 +5,7 @@
 #include <allegro5/allegro_primitives.h>
 #include <cmath>
 #include <exception>
-#include <forward_list>
+#include <list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -131,7 +131,7 @@ private:
   ALLEGRO_TIMER *performanceTimer = NULL;
   int previousPerformanceCount = 0;
   std::vector<std::shared_ptr<Backend>> backend;
-  std::forward_list<std::shared_ptr<Frontend>> frontend;
+  std::list<std::shared_ptr<Frontend>> frontend;
   bool keys[ALLEGRO_KEY_MAX] = {false};
 
 public:
@@ -221,17 +221,16 @@ std::shared_ptr<Frontend> System::getFrontend(std::string inID) {
 }
 void System::addFrontend(Frontend *toAdd) {
   if (this->frontend.empty()) {
-    this->frontend.assign(1, std::shared_ptr<Frontend>(toAdd));
+    this->frontend.push_front(std::shared_ptr<Frontend>(toAdd));
     return;
   }
   auto i = (this->frontend).begin();
   for (; i != (this->frontend).end(); i++) {
     if (i->get()->getZIndex() > toAdd->getZIndex()) {
-      this->frontend.insert_after(i, std::shared_ptr<Frontend>(toAdd));
+      this->frontend.insert(i, std::shared_ptr<Frontend>(toAdd));
     }
   }
-  this->frontend.insert_after(this->frontend.end(),
-                              std::shared_ptr<Frontend>(toAdd));
+  this->frontend.push_back(std::shared_ptr<Frontend>(toAdd));
 }
 void System::addBackend(Backend *toAdd) {
   this->backend.push_back(std::shared_ptr<Backend>(toAdd));
