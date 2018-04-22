@@ -177,6 +177,11 @@ void System::init() {
   if (!al_install_keyboard()) {
     throw InitFail("al_install_keyboard");
   }
+  try {
+    this->keyState = new ALLEGRO_KEYBOARD_STATE;
+  } catch (std::bad_alloc &ba) {
+    throw InitFail("new", "ALLEGRO_KEYBOARD_STATE");
+  }
   if (this->fps <= 0) {
     throw InitFail("System()", "fps: " + std::to_string(this->fps));
   }
@@ -240,17 +245,22 @@ void System::run() {
   // TODO figure out why the keyboard is so shitty
   ALLEGRO_EVENT ev;
   al_wait_for_event(this->queue, &ev);
-  if (ev.type == ALLEGRO_EVENT_TIMER) {
-    if (ev.timer.source == this->fpsTimer) {
-      this->redraw = true;
+  while (1) {
+    if (ev.type == ALLEGRO_EVENT_TIMER) {
+      if (ev.timer.source == this->fpsTimer) {
+        this->redraw = true;
+      }
+    } else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
+      this->eventKeys[ev.keyboard.keycode] = true;
+    } else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
+      this->eventKeys[ev.keyboard.keycode] = false;
+    } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+      this->close = true;
+      return;
     }
-  } else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
-    this->eventKeys[ev.keyboard.keycode] = true;
-  } else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
-    this->eventKeys[ev.keyboard.keycode] = false;
-  } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
-    this->close = true;
-    return;
+    if (al_get_next_event(this->queue, &ev) == false) {
+      break;
+    }
   }
   if (this->redraw) {
     al_get_keyboard_state(this->keyState);
@@ -267,6 +277,7 @@ void System::run() {
       i->get()->draw();
     }
     al_flip_display();
+    this->redraw = false;
   }
 }
 }
