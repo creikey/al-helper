@@ -137,6 +137,8 @@ private:
   ALLEGRO_TIMER *performanceTimer = NULL;
   int previousPerformanceCount = 0;
   std::vector<std::shared_ptr<Backend>> backend;
+  std::vector<ALLEGRO_EVENT_TYPE> eventTypes;
+  std::vector<void (*)(ALLEGRO_EVENT)> eventFunctions;
   std::list<std::shared_ptr<Frontend>> frontend;
   bool eventKeys[ALLEGRO_KEY_MAX] = {false};
   ALLEGRO_KEYBOARD_STATE *keyState = NULL;
@@ -154,6 +156,9 @@ public:
   void run();
   bool keyIsDown(int keycode) { return al_key_down(this->keyState, keycode); };
   double getFps() { return this->sets->fps; };
+  void addEventCallback(ALLEGRO_EVENT_TYPE eventType,
+                        void (*eventFunc)(ALLEGRO_EVENT));
+  void addEventSource(ALLEGRO_EVENT_SOURCE *inSource);
 };
 }
 
@@ -230,6 +235,9 @@ std::shared_ptr<Frontend> System::getFrontend(std::string inID) {
   throw(IDFail(inID));
 }
 void System::addFrontend(Frontend *toAdd) {
+  if (this->isInitialized()) {
+    throw InitFail("addFrontend");
+  }
   if (this->frontend.empty()) {
     this->frontend.push_front(std::shared_ptr<Frontend>(toAdd));
     return;
@@ -243,8 +251,21 @@ void System::addFrontend(Frontend *toAdd) {
   this->frontend.push_back(std::shared_ptr<Frontend>(toAdd));
 }
 void System::addBackend(Backend *toAdd) {
+  if (this->isInitialized()) {
+    throw InitFail("addBackend");
+  }
   this->backend.push_back(std::shared_ptr<Backend>(toAdd));
 }
+void System::addEventSource(ALLEGRO_EVENT_SOURCE *inSource) {
+  al_register_event_source(this->queue, inSource);
+}
+
+void System::addEventCallback(ALLEGRO_EVENT_TYPE eventType,
+                              void (*eventFunc)(ALLEGRO_EVENT)) {
+  this->eventTypes.push_back(eventType);
+  this->eventFunctions.push_back(eventFunc);
+}
+
 void System::run() {
   // TODO figure out why the keyboard is so shitty
   ALLEGRO_EVENT ev;
@@ -261,6 +282,16 @@ void System::run() {
     } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
       this->close = true;
       return;
+    } else {
+      auto type = this->eventTypes.begin();
+      auto function = this->eventFunctions.begin();
+      while (type != this->eventTypes.end()) {
+        if (ev.type == *type) {
+          (*function)(ev);
+        }
+        type++;
+        function++;
+      }
     }
     if (al_get_next_event(this->queue, &ev) == false) {
       break;

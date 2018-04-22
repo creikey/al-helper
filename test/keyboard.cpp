@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
   settings.clearColor = alhelp::SafeColor(0, 0, 0);
   settings.fps = 60.0;
   alhelp::System sys(&settings);
-  sys.init();
   sys.addBackend(new FPSCounter(&sys));
+  sys.init();
   for (int i = 0; i < 100; i++) {
     sys.addFrontend(new Square(
         alhelp::Vector2<double>(i * 2 + 10.0, i * 2 + 10.0),
