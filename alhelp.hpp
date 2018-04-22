@@ -117,6 +117,14 @@ public:
   virtual int getZIndex() = 0;
 };
 
+class Settings {
+public:
+  Vector2<int> displaySize = Vector2<int>(500, 500);
+  SafeColor clearColor = SafeColor(0, 0, 0);
+  double fps = 30.0;
+  Settings(){};
+};
+
 class System {
 private:
   ALLEGRO_DISPLAY *display = NULL;
@@ -124,9 +132,7 @@ private:
   bool initialized = false;
   bool close = false;
   bool redraw = false;
-  SafeColor clearcl;
-  Vector2<int> dispSize;
-  double fps;
+  Settings *sets;
   ALLEGRO_TIMER *fpsTimer = NULL;
   ALLEGRO_TIMER *performanceTimer = NULL;
   int previousPerformanceCount = 0;
@@ -136,11 +142,7 @@ private:
   ALLEGRO_KEYBOARD_STATE *keyState = NULL;
 
 public:
-  System()
-      : clearcl(SafeColor(0, 0, 0)), dispSize(Vector2<int>(500, 500)),
-        fps(30){};
-  System(Vector2<int> inDispSize, SafeColor col, double inFps)
-      : clearcl(col), dispSize(inDispSize), fps(inFps){};
+  System(Settings *inSettings) : sets(inSettings){};
   ~System();
   void init();
   bool isInitialized() { return initialized; };
@@ -151,7 +153,7 @@ public:
   bool getClose() { return this->close; };
   void run();
   bool keyIsDown(int keycode) { return al_key_down(this->keyState, keycode); };
-  double getFps() { return this->fps; };
+  double getFps() { return this->sets->fps; };
 };
 }
 
@@ -163,9 +165,10 @@ void System::init() {
   if (!al_init()) {
     throw InitFail("al_init");
   }
-  this->display = al_create_display(this->dispSize.x, this->dispSize.y);
+  this->display =
+      al_create_display(this->sets->displaySize.x, this->sets->displaySize.y);
   if (!this->display) {
-    throw InitFail("al_create_display", this->dispSize.toString());
+    throw InitFail("al_create_display", this->sets->displaySize.toString());
   }
   this->queue = al_create_event_queue();
   if (!this->queue) {
@@ -182,16 +185,17 @@ void System::init() {
   } catch (std::bad_alloc &ba) {
     throw InitFail("new", "ALLEGRO_KEYBOARD_STATE");
   }
-  if (this->fps <= 0) {
-    throw InitFail("System()", "fps: " + std::to_string(this->fps));
+  if (this->sets->fps <= 0) {
+    throw InitFail("System()", "fps: " + std::to_string(this->sets->fps));
   }
-  this->fpsTimer = al_create_timer(1.0 / this->fps);
+  this->fpsTimer = al_create_timer(1.0 / this->sets->fps);
   if (!this->fpsTimer) {
-    throw InitFail("al_create_timer", std::to_string(1.0 / this->fps));
+    throw InitFail("al_create_timer", std::to_string(1.0 / this->sets->fps));
   }
-  this->performanceTimer = al_create_timer((1.0 / this->fps) / 10);
+  this->performanceTimer = al_create_timer((1.0 / this->sets->fps) / 10);
   if (!this->performanceTimer) {
-    throw InitFail("al_create_timer", std::to_string((1.0 / this->fps) / 10));
+    throw InitFail("al_create_timer",
+                   std::to_string((1.0 / this->sets->fps) / 10));
   }
   al_register_event_source(this->queue,
                            al_get_display_event_source(this->display));
@@ -200,7 +204,7 @@ void System::init() {
   al_register_event_source(this->queue, al_get_keyboard_event_source());
   al_start_timer(this->performanceTimer);
   al_start_timer(this->fpsTimer);
-  al_clear_to_color(clearcl.al_c());
+  al_clear_to_color(this->sets->clearColor.al_c());
   al_flip_display();
   this->initialized = true;
 }
@@ -268,7 +272,7 @@ void System::run() {
                      this->previousPerformanceCount;
     this->previousPerformanceCount = al_get_timer_count(this->performanceTimer);
     double delta = countDelta / 10.0;
-    al_clear_to_color(this->clearcl.al_c());
+    al_clear_to_color(this->sets->clearColor.al_c());
     for (auto i = this->backend.begin(); i != this->backend.end(); i++) {
       i->get()->run(delta);
     }

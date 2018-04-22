@@ -67,8 +67,11 @@ private:
 };
 
 int main(int argc, char **argv) {
-  alhelp::System sys(alhelp::Vector2<int>(500, 500),
-                     alhelp::SafeColor(50, 50, 50), 60);
+  alhelp::Settings settings;
+  settings.displaySize = alhelp::Vector2<int>(500, 500);
+  settings.clearColor = alhelp::SafeColor(0, 0, 0);
+  settings.fps = 60.0;
+  alhelp::System sys(&settings);
   sys.init();
   sys.addBackend(new FPSCounter(&sys));
   for (int i = 0; i < 100; i++) {
