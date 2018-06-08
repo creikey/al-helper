@@ -80,6 +80,6 @@ int main(int argc, char **argv) {
         alhelp::SafeColor(i, i * 2, i * 3), 5, &sys, std::to_string(i)));
   }
   while (sys.getClose() == false) {
-    sys.run();
+    sys.run(std::cout);
   }
 }

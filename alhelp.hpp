@@ -138,9 +138,8 @@ private:
   int previousPerformanceCount = 0;
   std::vector<std::shared_ptr<Backend>> backend;
   std::vector<ALLEGRO_EVENT_TYPE> eventTypes;
-  std::vector<void (*)(ALLEGRO_EVENT)> eventFunctions;
+  std::vector<void (*)(ALLEGRO_EVENT, bool *)> eventFunctions;
   std::list<std::shared_ptr<Frontend>> frontend;
-  bool eventKeys[ALLEGRO_KEY_MAX] = {false};
   ALLEGRO_KEYBOARD_STATE *keyState = NULL;
 
 public:
@@ -153,11 +152,11 @@ public:
   void addFrontend(Frontend *toAdd);
   void addBackend(Backend *toAdd);
   bool getClose() { return this->close; };
-  void run();
+  void run(std::ostream &log);
   bool keyIsDown(int keycode) { return al_key_down(this->keyState, keycode); };
   double getFps() { return this->sets->fps; };
   void addEventCallback(ALLEGRO_EVENT_TYPE eventType,
-                        void (*eventFunc)(ALLEGRO_EVENT));
+                        void (*eventFunc)(ALLEGRO_EVENT, bool *));
   void addEventSource(ALLEGRO_EVENT_SOURCE *inSource);
 };
 }
@@ -261,33 +260,42 @@ void System::addEventSource(ALLEGRO_EVENT_SOURCE *inSource) {
 }
 
 void System::addEventCallback(ALLEGRO_EVENT_TYPE eventType,
-                              void (*eventFunc)(ALLEGRO_EVENT)) {
+                              void (*eventFunc)(ALLEGRO_EVENT, bool *)) {
   this->eventTypes.push_back(eventType);
   this->eventFunctions.push_back(eventFunc);
 }
 
-void System::run() {
-  // TODO figure out why the keyboard is so shitty
+void System::run(std::ostream &log) {
   ALLEGRO_EVENT ev;
   al_wait_for_event(this->queue, &ev);
   while (1) {
+    bool caught = false;
+    // Static events that never change
     if (ev.type == ALLEGRO_EVENT_TIMER) {
       if (ev.timer.source == this->fpsTimer) {
         this->redraw = true;
+        caught = true;
       }
-    } else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
-      this->eventKeys[ev.keyboard.keycode] = true;
-    } else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
-      this->eventKeys[ev.keyboard.keycode] = false;
     } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
       this->close = true;
+      caught = true;
+    }
+    // If I need to close
+    if (this->close) {
       return;
-    } else {
+    }
+    // If no static event has been found
+    if (!caught) {
       auto type = this->eventTypes.begin();
       auto function = this->eventFunctions.begin();
       while (type != this->eventTypes.end()) {
         if (ev.type == *type) {
-          (*function)(ev);
+          (*function)(ev, &caught);
+        }
+        // If event has been caught
+        if (caught) {
+          // Stop checking dynamic events
+          break;
         }
         type++;
         function++;
